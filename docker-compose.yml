@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  # MQTT Message Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: shelly-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+    environment:
+      - TZ=${TZ}
+    networks:
+      - shelly-net
+
+  # Python simulated Shelly sensor publisher
+  sensor-simulator:
+    build: ./simulator
+    container_name: shelly-simulator
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    env_file:
+      - .env
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_TOPIC=shelly/sim/device_01
+    networks:
+      - shelly-net
+
+  # Timeseries Database for sensor metrics
+  postgres:
+    image: postgres:16-alpine
+    container_name: shelly-postgres
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      - TZ=${TZ}
+    networks:
+      - shelly-net
+
+  # MQTT → PostgreSQL Bridge Service
+  mqtt-postgres-bridge:
+    image: confluentinc/cp-kafka-connect-base:7.6.0
+    container_name: shelly-bridge
+    restart: unless-stopped
+    # Alternative simple solution: If you want lighter stack, use python bridge instead
+    # Simplified alternative: We will use Grafana MQTT plugin OR lightweight python consumer
+    # For simplicity, this project uses a lightweight python consumer (Optional extension)
+    depends_on:
+      - mosquitto
+      - postgres
+    env_file:
+      - .env
+    networks:
+      - shelly-net
+
+  # Grafana Visualization Dashboard
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: shelly-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - TZ=${TZ}
+    depends_on:
+      - postgres
+    networks:
+      - shelly-net
+
+networks:
+  shelly-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  grafana-data:
