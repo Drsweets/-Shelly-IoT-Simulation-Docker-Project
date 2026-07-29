@@ -1,0 +1,9 @@
+# Env secrets
+.env
+# Docker data
+*/data/
+*.log
+# System files
+.DS_Store
+__pycache__/
+*.pyc
