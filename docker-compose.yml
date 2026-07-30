@@ -1,7 +1,6 @@
 version: "3.8"
 
 services:
-  # MQTT Message Broker
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: shelly-mosquitto
@@ -15,7 +14,6 @@ services:
     networks:
       - shelly-net
 
-  # Python simulated Shelly sensor publisher
   sensor-simulator:
     build: ./simulator
     container_name: shelly-simulator
@@ -30,7 +28,21 @@ services:
     networks:
       - shelly-net
 
-  # Timeseries Database for sensor metrics
+  mqtt-consumer:
+    build: ./mqtt-consumer
+    container_name: shelly-mqtt-consumer
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - postgres
+    env_file:
+      - .env
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_TOPIC=shelly/sim/device_01
+    networks:
+      - shelly-net
+
   postgres:
     image: postgres:16-alpine
     container_name: shelly-postgres
@@ -40,30 +52,13 @@ services:
     env_file:
       - .env
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
       - TZ=${TZ}
     networks:
       - shelly-net
 
-  # MQTT → PostgreSQL Bridge Service
-  mqtt-postgres-bridge:
-    image: confluentinc/cp-kafka-connect-base:7.6.0
-    container_name: shelly-bridge
-    restart: unless-stopped
-    # Alternative simple solution: If you want lighter stack, use python bridge instead
-    # Simplified alternative: We will use Grafana MQTT plugin OR lightweight python consumer
-    # For simplicity, this project uses a lightweight python consumer (Optional extension)
-    depends_on:
-      - mosquitto
-      - postgres
-    env_file:
-      - .env
-    networks:
-      - shelly-net
-
-  # Grafana Visualization Dashboard
   grafana:
     image: grafana/grafana-oss:latest
     container_name: shelly-grafana
