@@ -1,5 +1,5 @@
 # Shelly IoT Simulation Pipeline | Docker Compose Homelab Project
-![Grafana Dashboard Preview](./screenshots/grafana-preview.png)
+![Grafana Dashboard Preview]
 > Adapted for mainland China home network constraints | No physical Shelly hardware required
 
 ## 🎯 Project Overview
