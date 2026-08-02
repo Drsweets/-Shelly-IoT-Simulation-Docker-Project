@@ -68,6 +68,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
+    env_file:
+      - .env
     environment:
       - TZ=${TZ}
     depends_on:
